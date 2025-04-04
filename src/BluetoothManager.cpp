@@ -55,6 +55,7 @@ public:
             auto uuid = obj->get_uuid();
             auto parent = obj->get_device();
             manager->handle_event(type, nullptr, &uuid, &parent, *obj);
+            delete obj;
         }
         else if(IS_GATT_CHARACTERISTIC1_PROXY(interface)) {
             type = BluetoothType::GATT_CHARACTERISTIC;
@@ -62,6 +63,7 @@ public:
             auto uuid = obj->get_uuid();
             auto parent = obj->get_service();
             manager->handle_event(type, nullptr, &uuid, &parent, *obj);
+            delete obj;
         }
         else if(IS_GATT_DESCRIPTOR1_PROXY(interface)) {
             type = BluetoothType::GATT_DESCRIPTOR;
@@ -69,6 +71,7 @@ public:
             auto uuid = obj->get_uuid();
             auto parent = obj->get_characteristic();
             manager->handle_event(type, nullptr, &uuid, &parent, *obj);
+            delete obj;
         }
         else if(IS_DEVICE1_PROXY(interface)) {
             type = BluetoothType::DEVICE;
@@ -77,6 +80,7 @@ public:
             auto uuid = obj->get_address();
             auto parent = obj->get_adapter();
             manager->handle_event(type, &name, &uuid, &parent, *obj);
+            delete obj;
         }
         else if(IS_ADAPTER1_PROXY(interface)) {
             type = BluetoothType::ADAPTER;
@@ -84,6 +88,7 @@ public:
             auto name = obj->get_name();
             auto uuid = obj->get_address();
             manager->handle_event(type, &name, &uuid, nullptr, *obj);
+            delete obj;
         }
     }
 
