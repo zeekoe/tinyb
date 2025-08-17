@@ -26,6 +26,7 @@
 #include <memory>
 #include <mutex>
 #include <atomic>
+#include <string>
 
 #define JAVA_PACKAGE "tinyb"
 

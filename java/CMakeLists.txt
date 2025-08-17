@@ -11,10 +11,6 @@ else ()
 endif ()
 
 
-# Check that we can use javah
-if(NOT Java_JAVAH_EXECUTABLE)
-    message(FATAL_ERROR "Cannot locate javah executable.")
-endif(NOT Java_JAVAH_EXECUTABLE)
 
 set(CMAKE_JNI_TARGET TRUE)
 file(GLOB JAVA_SOURCES "*.java")
@@ -40,7 +36,7 @@ add_custom_command (TARGET tinybjar
   POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E echo "Generating JNI headers.."
   WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/tinybjar.dir"
-  COMMAND ${Java_JAVAH_EXECUTABLE} -d jni/ -jni ${JAVA_CLASSES}
+  COMMAND  cp ../../../../java/*.java tinyb/ && javac -verbose -h jni/ -d jni/ tinyb/*.java
 )
 
 set(JNI_HEADER_PATH "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/tinybjar.dir/jni")
