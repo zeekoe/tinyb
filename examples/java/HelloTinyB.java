@@ -3,6 +3,11 @@ import java.util.*;
 import java.util.concurrent.locks.*;
 import java.util.concurrent.TimeUnit;
 
+/* WS08 source:
+https://github.com/rnlgreen/thermobeacon/blob/main/thermobeacon2.py
+ */
+
+
 public class HelloTinyB {
     private static final float SCALE_LSB = 0.03125f;
     static boolean running = true;
@@ -85,6 +90,45 @@ public class HelloTinyB {
         return null;
     }
 
+    public static byte[] writeBytes(BluetoothGattCharacteristic tx, BluetoothGattCharacteristic rx, String vals) {
+        byte[] writeVal = hexStringToByteArray(vals);
+        tx.writeValue(writeVal);
+        return rx.readValue();
+    }
+
+
+    // Helper method to convert hex string to byte array
+    public static byte[] hexStringToByteArray(String s) {
+        int len = s.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
+                    + Character.digit(s.charAt(i + 1), 16));
+        }
+        return data;
+    }
+
+    /*
+    There are 5518 available data points from this device (Loft)
+0000 : 07 00 00 00 00 03 5d 01 5f 01 5e 01 b8 04 7d 04 79 04 00 00
+21.81,21.94,21.88,75.50,71.81,71.56
+0003 : 07 03 00 00 00 03 5d 01 5d 01 5d 01 7b 04 79 04 7a 04 00 00
+21.81,21.81,21.81,71.69,71.56,71.62
+0006 : 07 06 00 00 00 03 5d 01 5d 01 5d 01 7a 04 78 04 79 04 00 00
+21.81,21.81,21.81,71.62,71.50,71.56
+0009 : 07 09 00 00 00 03 5d 01 5e 01 5e 01 79 04 7a 04 79 04 00 00
+
+Found the temperature characteristics
+There are 5518 available data points from this device (DC:1E:00:00:00:92)
+0000: 07 00 00 00 00 03 5d 01 5f 01 5e 01 b8 04 7d 04 79 04 00 00
+Temp raw = {07,00,00,00,00,03,5d,01,5f,01,5e,01,b8,04,7d,04,79,04,00,00,} Temp: Object = 0.054688C, Ambient = 0.000000C
+Temp raw = {07,00,00,00,00,03,5d,01,5f,01,5e,01,b8,04,7d,04,79,04,00,00,} Temp: Object = 0.054688C, Ambient = 0.000000C
+Temp raw = {07,00,00,00,00,03,5d,01,5f,01,5e,01,b8,04,7d,04,79,04,00,00,} Temp: Object = 0.054688C, Ambient = 0.000000C
+
+
+     */
+
+
     /*
      * This program connects to a TI SensorTag 2.0 and reads the temperature characteristic exposed by the device over
      * Bluetooth Low Energy. The parameter provided to the program should be the MAC address of the device.
@@ -95,6 +139,7 @@ public class HelloTinyB {
      * simplied API for discovering devices and services.
      */
     public static void main(String[] args) throws InterruptedException {
+
 
         if (args.length < 1) {
             System.err.println("Run with <device_address> argument");
@@ -157,8 +202,22 @@ public class HelloTinyB {
             }
         });
 
+        /*
+        Services exposed by device:
+UUID: 0000180a-0000-1000-8000-00805f9b34fb
+00002a25-0000-1000-8000-00805f9b34fb, 00002a29-0000-1000-8000-00805f9b34fb, 00002a50-0000-1000-8000-00805f9b34fb,
+00002a26-0000-1000-8000-00805f9b34fb, 00002a2a-0000-1000-8000-00805f9b34fb, 00002a27-0000-1000-8000-00805f9b34fb,
+ 00002a23-0000-1000-8000-00805f9b34fb, 00002a28-0000-1000-8000-00805f9b34fb, 00002a24-0000-1000-8000-00805f9b34fb
 
-        BluetoothGattService tempService = getService(sensor, "f000aa00-0451-4000-b000-000000000000");
+UUID: 0000ffe0-0000-1000-8000-00805f9b34fb
+0000fff3-0000-1000-8000-00805f9b34fb [RX], 0000fff5-0000-1000-8000-00805f9b34fb [TX]
+
+UUID: 00001801-0000-1000-8000-00805f9b34fb
+00002a05-0000-1000-8000-00805f9b34fb (service changed)
+         */
+
+
+        BluetoothGattService tempService = getService(sensor, "0000ffe0-0000-1000-8000-00805f9b34fb");
 
         if (tempService == null) {
             System.err.println("This device does not have the temperature service we are looking for.");
@@ -167,11 +226,10 @@ public class HelloTinyB {
         }
         System.out.println("Found service " + tempService.getUUID());
 
-        BluetoothGattCharacteristic tempValue = getCharacteristic(tempService, "f000aa01-0451-4000-b000-000000000000");
-        BluetoothGattCharacteristic tempConfig = getCharacteristic(tempService, "f000aa02-0451-4000-b000-000000000000");
-        BluetoothGattCharacteristic tempPeriod = getCharacteristic(tempService, "f000aa03-0451-4000-b000-000000000000");
+        BluetoothGattCharacteristic rx = getCharacteristic(tempService, "0000fff3-0000-1000-8000-00805f9b34fb");
+        BluetoothGattCharacteristic tx = getCharacteristic(tempService, "0000fff5-0000-1000-8000-00805f9b34fb");
 
-        if (tempValue == null || tempConfig == null || tempPeriod == null) {
+        if (rx == null || tx == null) {
             System.err.println("Could not find the correct characteristics.");
             sensor.disconnect();
             System.exit(-1);
@@ -184,33 +242,42 @@ public class HelloTinyB {
          * mentioned above. We could also modify the update interval, by writing in the period characteristic, but the
          * default 1s is good enough for our purposes.
          */
-        byte[] config = { 0x01 };
-        tempConfig.writeValue(config);
 
         /*
          * Each second read the value characteristic and display it in a human readable format.
          */
         while (running) {
-            byte[] tempRaw = tempValue.readValue();
-            System.out.print("Temp raw = {");
-            for (byte b : tempRaw) {
-                System.out.print(String.format("%02x,", b));
+            // Send initial command to get the number of available data points
+            byte[] response = writeBytes(tx, rx, "0100000000");
+            // The number of available values is stored in the second and third bytes of the response, little endian order
+            int available = ((response[2] & 0xFF) << 8) | (response[1] & 0xFF);
+
+            System.out.println("There are " + available + " available data points from this device (" + sensor.getAddress() + ")");
+
+            try {
+                // Data is returned as three pairs of temperature and humidity values
+                for (int dataPoint = (available / 3) - 1; dataPoint < available / 3; dataPoint++) {
+                    int index = dataPoint * 3;
+                    // Print index for reference
+                    System.out.print(String.format("%04d", index) + ": ");
+                    // Convert index to hex, padded with leading zeroes
+                    String indexHex = String.format("%04x", index);
+                    // Reverse the byte order of the hex values
+                    String indexHexReversed = indexHex.substring(2) + indexHex.substring(0, 2);
+                    // Build the request string to be sent to the device
+                    String hexString = "07" + indexHexReversed + "000003";
+                    // Send the request and get the response
+                    response = writeBytes(tx, rx, hexString);
+                    // Print the response as text
+                    System.out.println(convertToText(response));
+                    // Convert the response to temperature and humidity readings
+                    convertToReadings(response);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                // Handle exception
             }
-            System.out.print("}");
 
-            /*
-             * The temperature service returns the data in an encoded format which can be found in the wiki. Convert the
-             * raw temperature format to celsius and print it. Conversion for object temperature depends on ambient
-             * according to wiki, but assume result is good enough for our purposes without conversion.
-             */
-            int objectTempRaw = (tempRaw[0] & 0xff) | (tempRaw[1] << 8);
-            int ambientTempRaw = (tempRaw[2] & 0xff) | (tempRaw[3] << 8);
-
-            float objectTempCelsius = convertCelsius(objectTempRaw);
-            float ambientTempCelsius = convertCelsius(ambientTempRaw);
-
-            System.out.println(
-                    String.format(" Temp: Object = %fC, Ambient = %fC", objectTempCelsius, ambientTempCelsius));
 
             lock.lock();
             try {
@@ -222,4 +289,36 @@ public class HelloTinyB {
         sensor.disconnect();
 
     }
+
+
+    // Function to convert the readings we get back into temperatures and humidities
+    public static void convertToReadings(byte[] response) {
+        StringBuilder readings = new StringBuilder();
+        for (int v = 0; v < 6; v++) {
+            int resultsPosition = 6 + (v * 2);
+            double reading = ((response[resultsPosition + 1] & 0xFF) << 8) | (response[resultsPosition] & 0xFF);
+            reading *= 0.0625;
+            if (reading > 2048) {
+                reading = -1 * (4096 - reading);
+            }
+            readings.append(String.format("%.2f", reading));
+            if (v < 5) {
+                readings.append(",");
+            }
+        }
+        System.out.println(readings.toString());
+    }
+
+    public static String convertToText(byte[] results) {
+        StringBuilder hexResults = new StringBuilder();
+        for (int v = 0; v < results.length; v++) {
+            String hexValue = String.format("%02x", results[v]);
+            hexResults.append(hexValue);
+            if (v < results.length - 1) {
+                hexResults.append(" ");
+            }
+        }
+        return hexResults.toString();
+    }
+
 }
