@@ -1,7 +1,11 @@
 import tinyb.*;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.concurrent.locks.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /* WS08 source:
 https://github.com/rnlgreen/thermobeacon/blob/main/thermobeacon2.py
@@ -9,7 +13,6 @@ https://github.com/rnlgreen/thermobeacon/blob/main/thermobeacon2.py
 
 
 public class HelloTinyB {
-    private static final float SCALE_LSB = 0.03125f;
     static boolean running = true;
 
     static void printDevice(BluetoothDevice device) {
@@ -18,11 +21,6 @@ public class HelloTinyB {
         System.out.print(" Connected = " + device.getConnected());
         System.out.println();
     }
-
-    static float convertCelsius(int raw) {
-        return raw / 128f;
-    }
-
     /*
      * After discovery is started, new devices will be detected. We can get a list of all devices through the manager's
      * getDevices method. We can the look through the list of devices to find the device with the MAC which we provided
@@ -109,31 +107,8 @@ public class HelloTinyB {
     }
 
     /*
-    There are 5518 available data points from this device (Loft)
-0000 : 07 00 00 00 00 03 5d 01 5f 01 5e 01 b8 04 7d 04 79 04 00 00
-21.81,21.94,21.88,75.50,71.81,71.56
-0003 : 07 03 00 00 00 03 5d 01 5d 01 5d 01 7b 04 79 04 7a 04 00 00
-21.81,21.81,21.81,71.69,71.56,71.62
-0006 : 07 06 00 00 00 03 5d 01 5d 01 5d 01 7a 04 78 04 79 04 00 00
-21.81,21.81,21.81,71.62,71.50,71.56
-0009 : 07 09 00 00 00 03 5d 01 5e 01 5e 01 79 04 7a 04 79 04 00 00
-
-Found the temperature characteristics
-There are 5518 available data points from this device (DC:1E:00:00:00:92)
-0000: 07 00 00 00 00 03 5d 01 5f 01 5e 01 b8 04 7d 04 79 04 00 00
-Temp raw = {07,00,00,00,00,03,5d,01,5f,01,5e,01,b8,04,7d,04,79,04,00,00,} Temp: Object = 0.054688C, Ambient = 0.000000C
-Temp raw = {07,00,00,00,00,03,5d,01,5f,01,5e,01,b8,04,7d,04,79,04,00,00,} Temp: Object = 0.054688C, Ambient = 0.000000C
-Temp raw = {07,00,00,00,00,03,5d,01,5f,01,5e,01,b8,04,7d,04,79,04,00,00,} Temp: Object = 0.054688C, Ambient = 0.000000C
-
-
-     */
-
-
-    /*
-     * This program connects to a TI SensorTag 2.0 and reads the temperature characteristic exposed by the device over
+     * This program connects to a WS08 ThermoBeacon and reads the temperature characteristic exposed by the device over
      * Bluetooth Low Energy. The parameter provided to the program should be the MAC address of the device.
-     *
-     * A wiki describing the sensor is found here: http://processors.wiki.ti.com/index.php/CC2650_SensorTag_User's_Guide
      *
      * The API used in this example is based on TinyB v0.3, which only supports polling, but v0.4 will introduce a
      * simplied API for discovering devices and services.
@@ -202,20 +177,6 @@ Temp raw = {07,00,00,00,00,03,5d,01,5f,01,5e,01,b8,04,7d,04,79,04,00,00,} Temp: 
             }
         });
 
-        /*
-        Services exposed by device:
-UUID: 0000180a-0000-1000-8000-00805f9b34fb
-00002a25-0000-1000-8000-00805f9b34fb, 00002a29-0000-1000-8000-00805f9b34fb, 00002a50-0000-1000-8000-00805f9b34fb,
-00002a26-0000-1000-8000-00805f9b34fb, 00002a2a-0000-1000-8000-00805f9b34fb, 00002a27-0000-1000-8000-00805f9b34fb,
- 00002a23-0000-1000-8000-00805f9b34fb, 00002a28-0000-1000-8000-00805f9b34fb, 00002a24-0000-1000-8000-00805f9b34fb
-
-UUID: 0000ffe0-0000-1000-8000-00805f9b34fb
-0000fff3-0000-1000-8000-00805f9b34fb [RX], 0000fff5-0000-1000-8000-00805f9b34fb [TX]
-
-UUID: 00001801-0000-1000-8000-00805f9b34fb
-00002a05-0000-1000-8000-00805f9b34fb (service changed)
-         */
-
 
         BluetoothGattService tempService = getService(sensor, "0000ffe0-0000-1000-8000-00805f9b34fb");
 
@@ -256,23 +217,21 @@ UUID: 00001801-0000-1000-8000-00805f9b34fb
 
             try {
                 // Data is returned as three pairs of temperature and humidity values
-                for (int dataPoint = (available / 3) - 1; dataPoint < available / 3; dataPoint++) {
-                    int index = dataPoint * 3;
-                    // Print index for reference
-                    System.out.print(String.format("%04d", index) + ": ");
-                    // Convert index to hex, padded with leading zeroes
-                    String indexHex = String.format("%04x", index);
-                    // Reverse the byte order of the hex values
-                    String indexHexReversed = indexHex.substring(2) + indexHex.substring(0, 2);
-                    // Build the request string to be sent to the device
-                    String hexString = "07" + indexHexReversed + "000003";
-                    // Send the request and get the response
-                    response = writeBytes(tx, rx, hexString);
-                    // Print the response as text
-                    System.out.println(convertToText(response));
-                    // Convert the response to temperature and humidity readings
-                    convertToReadings(response);
-                }
+                int index = available - 1;
+                // Print index for reference
+                System.out.print(String.format("%04d", index) + ": ");
+                // Convert index to hex, padded with leading zeroes
+                String indexHex = String.format("%04x", index);
+                // Reverse the byte order of the hex values
+                String indexHexReversed = indexHex.substring(2) + indexHex.substring(0, 2);
+                // Build the request string to be sent to the device
+                String hexString = "07" + indexHexReversed + "000003";
+                // Send the request and get the response
+                response = writeBytes(tx, rx, hexString);
+                // Print the response as text
+                System.out.println(convertToText(response));
+                // Convert the response to temperature and humidity readings
+                System.out.println(convertToReadings(response));
             } catch (Exception e) {
                 e.printStackTrace();
                 // Handle exception
@@ -292,8 +251,8 @@ UUID: 00001801-0000-1000-8000-00805f9b34fb
 
 
     // Function to convert the readings we get back into temperatures and humidities
-    public static void convertToReadings(byte[] response) {
-        StringBuilder readings = new StringBuilder();
+    public static Reading convertToReadings(byte[] response) {
+        List<BigDecimal> readings = new ArrayList<>();
         for (int v = 0; v < 6; v++) {
             int resultsPosition = 6 + (v * 2);
             double reading = ((response[resultsPosition + 1] & 0xFF) << 8) | (response[resultsPosition] & 0xFF);
@@ -301,12 +260,10 @@ UUID: 00001801-0000-1000-8000-00805f9b34fb
             if (reading > 2048) {
                 reading = -1 * (4096 - reading);
             }
-            readings.append(String.format("%.2f", reading));
-            if (v < 5) {
-                readings.append(",");
-            }
+            readings.add(BigDecimal.valueOf(reading).setScale(2, RoundingMode.HALF_UP));
         }
-        System.out.println(readings.toString());
+        System.out.println(readings.stream().map(r -> r.toString()).collect(Collectors.joining(", ")));
+        return new Reading(readings.get(0), readings.get(3));
     }
 
     public static String convertToText(byte[] results) {
@@ -321,4 +278,5 @@ UUID: 00001801-0000-1000-8000-00805f9b34fb
         return hexResults.toString();
     }
 
+    record Reading(BigDecimal temperature, BigDecimal humidity) {}
 }
