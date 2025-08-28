@@ -19,24 +19,24 @@ add_jar(tinybjar ${JAVA_SOURCES}
                   OUTPUT_NAME tinyb
 )
 
-set(JAVA_CLASSES tinyb.BluetoothAdapter
-                 tinyb.BluetoothCallback
-                 tinyb.BluetoothDevice
-                 tinyb.BluetoothEvent
-                 tinyb.BluetoothGattCharacteristic
-                 tinyb.BluetoothGattService
-                 tinyb.BluetoothGattDescriptor
-                 tinyb.BluetoothManager
-                 tinyb.BluetoothObject
-                 tinyb.BluetoothType
-                 tinyb.BluetoothException
-                 tinyb.ObjectArgCallback
-                 tinyb.ObjectArrayArgCallback)
+set(JAVA_CLASSES ../../../../java/BluetoothAdapter.java
+                 ../../../../java/BluetoothCallback.java
+                 ../../../../java/BluetoothDevice.java
+                 ../../../../java/BluetoothEvent.java
+                 ../../../../java/BluetoothGattCharacteristic.java
+                 ../../../../java/BluetoothGattService.java
+                 ../../../../java/BluetoothGattDescriptor.java
+                 ../../../../java/BluetoothManager.java
+                 ../../../../java/BluetoothObject.java
+                 ../../../../java/BluetoothType.java
+                 ../../../../java/BluetoothException.java
+                 ../../../../java/ObjectArgCallback.java
+                 ../../../../java/ObjectArrayArgCallback.java)
 add_custom_command (TARGET tinybjar
   POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E echo "Generating JNI headers.."
   WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/tinybjar.dir"
-  COMMAND  cp ../../../../java/*.java tinyb/ && javac -verbose -h jni/ -d jni/ tinyb/*.java
+  COMMAND ${Java_JAVAC_EXECUTABLE} -h jni/ ${JAVA_CLASSES}
 )
 
 set(JNI_HEADER_PATH "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/tinybjar.dir/jni")
