@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# prerequisites: sudo apt install cmake default-jdk
+
 # Script created by Tim Littlefair, adapted by zeekoe to build binary release artifacts for
 # github fork of the orphan tinyb library originally owned by 
 # intel-iot-core
